@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Independent Set — NP-Completeness Visualizer</title>
+<style>
+:root {
+  --bg: #0a0c12;
+  --surface: #111520;
+  --surface2: #161b2e;
+  --border: #1e2640;
+  --border2: #2a3358;
+  --text: #e2e8f0;
+  --text-dim: #8892a4;
+  --text-muted: #4a5568;
+  --accent: #5b8dee;
+  --accent2: #8b5cf6;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --cyan: #06b6d4;
+  --orange: #f97316;
+  --node-default: #1e2640;
+  --node-stroke: #3b4f82;
+  --font-main: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Mono', Consolas, 'Courier New', monospace;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-main); min-height: 100vh; overflow-x: hidden; }
+
+/* ─── HEADER ─── */
+.site-header {
+  background: linear-gradient(135deg, #0d1120 0%, #111930 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(8px);
+}
+.site-header h1 {
+  font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #5b8dee, #8b5cf6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.header-tabs { display: flex; gap: 4px; }
+.header-tab {
+  background: none; border: 1px solid transparent; color: var(--text-dim);
+  padding: 6px 14px; border-radius: var(--radius); cursor: pointer;
+  font-family: var(--font-main); font-size: 0.82rem; font-weight: 600; transition: all 0.2s;
+}
+.header-tab:hover { border-color: var(--border2); color: var(--text); }
+.header-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.badge {
+  display: inline-block; background: var(--accent2); color: #fff;
+  font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+   letter-spacing: 0.5px;
+}
+
+/* ─── SECTIONS ─── */
+.section { display: none; padding: 2rem; max-width: 1400px; margin: 0 auto; }
+.section.active { display: block; }
+.section-heading {
+  font-size: 1.5rem; font-weight: 800; margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #5b8dee, #8b5cf6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.5rem;
+}
+.card h3 { font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+.card p, .card li { font-size: 0.88rem; line-height: 1.7; color: var(--text-dim); }
+.card ul { padding-left: 1.2rem; }
+.card li { margin-bottom: 0.4rem; }
+
+.concept-box {
+  background: linear-gradient(135deg, rgba(91,141,238,0.08), rgba(139,92,246,0.08));
+  border: 1px solid rgba(91,141,238,0.25); border-radius: var(--radius-lg);
+  padding: 1.5rem 2rem; margin-bottom: 1.5rem;
+}
+.concept-box h2 {
+  font-size: 1.3rem; font-weight: 800; margin-bottom: 0.8rem;
+  background: linear-gradient(135deg, #5b8dee, #8b5cf6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.concept-box p { font-size: 0.9rem; line-height: 1.75; color: var(--text-dim); }
+
+.formula {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 0.8rem 1.2rem;  font-size: 0.85rem;
+  color: var(--cyan); margin: 0.8rem 0; display: block; white-space: pre-wrap;
+}
+
+.highlight { color: var(--accent); font-weight: 600; }
+.highlight-green { color: var(--green); font-weight: 600; }
+.highlight-yellow { color: var(--yellow); font-weight: 600; }
+.highlight-red { color: var(--red); font-weight: 600; }
+.highlight-purple { color: var(--accent2); font-weight: 600; }
+
+.overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+.app-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0.8rem; }
+.app-tag {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px;
+  padding: 4px 12px; font-size: 0.75rem; color: var(--text-dim); 
+}
+
+/* ─── VISUALIZER ─── */
+.viz-layout { display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; align-items: start; }
+.controls-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 1.2rem; position: sticky; top: 80px; display: flex; flex-direction: column; gap: 1rem;
+  max-height: calc(100vh - 100px); overflow-y: auto;
+}
+.panel-title {
+  font-size: 0.75rem; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1.5px;  margin-bottom: 0.2rem;
+}
+.control-group { display: flex; flex-direction: column; gap: 6px; }
+.control-label { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; }
+
+select, input[type="text"], input[type="number"] {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius);
+  color: var(--text); padding: 7px 10px; font-size: 0.82rem; 
+  width: 100%; transition: border-color 0.2s;
+}
+select:focus, input:focus { outline: none; border-color: var(--accent); }
+select option { background: var(--surface); }
+input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn {
+  flex: 1; min-width: 60px; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--text); padding: 8px 10px;
+  font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: var(--font-main);
+  transition: all 0.15s; text-align: center;
+}
+.btn:hover { background: var(--border2); border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #4a7de0; }
+.btn.danger { background: rgba(239,68,68,0.15); border-color: var(--red); color: var(--red); }
+.btn.danger:hover { background: rgba(239,68,68,0.25); }
+.btn.success { background: rgba(34,197,94,0.15); border-color: var(--green); color: var(--green); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.algo-toggle { display: flex; gap: 0; }
+.algo-toggle .btn { border-radius: 0; flex: 1; }
+.algo-toggle .btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.algo-toggle .btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.algo-toggle .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.stat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; text-align: center; }
+.stat-val { font-size: 1.4rem; font-weight: 800;  color: var(--accent); display: block; }
+.stat-lbl { font-size: 0.65rem; color: var(--text-muted);  text-transform: uppercase; letter-spacing: 0.5px; }
+
+.status-bar {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 12px; font-size: 0.78rem;  color: var(--text-dim);
+  min-height: 36px; word-break: break-word; line-height: 1.5;
+}
+.status-bar.info { border-color: var(--accent); color: var(--accent); }
+.status-bar.success { border-color: var(--green); color: var(--green); }
+.status-bar.warn { border-color: var(--yellow); color: var(--yellow); }
+
+/* ─── RIGHT PANEL ─── */
+.right-panel { display: flex; flex-direction: column; gap: 1.2rem; }
+.viz-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.viz-card-header {
+  padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; background: var(--surface2);
+}
+.viz-card-title { font-size: 0.82rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.viz-canvas-wrap { position: relative; background: radial-gradient(ellipse at center, #0f1525 0%, #0a0c12 100%); }
+#mainSvg { display: block; width: 100%; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 0.6rem 1.2rem; border-top: 1px solid var(--border); background: var(--surface2); }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-dim); }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─── PSEUDOCODE ─── */
+.pseudo-code {
+  background: var(--surface2); padding: 1rem 1.2rem; 
+  font-size: 0.78rem; line-height: 2; overflow: auto; max-height: 280px;
+}
+.pseudo-line {
+  padding: 2px 6px; border-radius: 3px; cursor: pointer; color: var(--text-dim);
+  white-space: pre; transition: background 0.15s; position: relative;
+}
+.pseudo-line:hover { background: rgba(91,141,238,0.08); }
+.pseudo-line.active {
+  background: rgba(91,141,238,0.18); color: var(--text);
+  border-left: 3px solid var(--accent); padding-left: 10px;
+}
+.pseudo-line .kw { color: var(--accent2); }
+.pseudo-line .fn { color: var(--cyan); }
+.pseudo-line .cm { color: var(--text-muted); }
+.pseudo-line .num { color: var(--orange); }
+
+/* ─── PSEUDO TOOLTIP ─── */
+.pseudo-tooltip {
+  position: fixed; background: #1a2035; border: 1px solid var(--accent);
+  border-radius: var(--radius); padding: 10px 14px; font-size: 0.75rem;
+   color: var(--text); pointer-events: none;
+  z-index: 500; display: none; max-width: 340px; line-height: 1.6;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.pseudo-tooltip .pt-title { color: var(--accent); font-weight: 700; margin-bottom: 6px; font-size: 0.8rem; }
+.pseudo-tooltip .pt-complexity { color: var(--yellow); margin-top: 6px; font-size: 0.72rem; }
+
+.step-explain {
+  background: var(--surface2); border-top: 1px solid var(--border);
+  padding: 0.8rem 1.2rem; font-size: 0.8rem; color: var(--text-dim); line-height: 1.6; min-height: 52px;
+}
+
+/* ─── STEP HISTORY ─── */
+.step-history {
+  background: var(--surface2); border-top: 1px solid var(--border);
+  padding: 0.6rem 1.2rem; max-height: 130px; overflow-y: auto;
+}
+.step-history-title { font-size: 0.68rem;  color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.history-item {
+  font-size: 0.72rem;  color: var(--text-muted);
+  padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: background 0.1s;
+  display: flex; gap: 8px; align-items: flex-start; border-bottom: 1px solid rgba(30,38,64,0.5);
+}
+.history-item:hover { background: rgba(91,141,238,0.1); color: var(--text); }
+.history-item.current { background: rgba(91,141,238,0.15); color: var(--accent); }
+.history-item .hi-num { color: var(--accent); min-width: 28px; }
+.history-item .hi-type { min-width: 70px; }
+.hi-type.init { color: var(--cyan); }
+.hi-type.consider { color: var(--accent); }
+.hi-type.select { color: var(--green); }
+.hi-type.eliminate { color: var(--red); }
+.hi-type.done { color: var(--yellow); }
+.hi-type.valid { color: var(--green); }
+.hi-type.invalid { color: var(--red); }
+
+/* ─── GROWTH CHART ─── */
+.chart-wrap { padding: 1rem 1.2rem; position: relative; }
+#growthCanvas { width: 100%; height: 200px; display: block; }
+.chart-legend { display: flex; gap: 16px; margin-top: 8px; }
+.chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-dim);  }
+.chart-legend-dot { width: 24px; height: 3px; border-radius: 2px; }
+
+/* ─── NP SECTION ─── */
+.np-section { max-width: 1200px; margin: 0 auto; }
+.proof-steps { display: flex; flex-direction: column; gap: 1.2rem; }
+.proof-step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.proof-step-header {
+  display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem;
+  background: var(--surface2); cursor: pointer; user-select: none;
+  border-bottom: 1px solid transparent; transition: border-color 0.2s;
+}
+.proof-step-header:hover { border-bottom-color: var(--border); }
+.proof-step-header.open { border-bottom-color: var(--border); }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; flex-shrink: 0;
+}
+.step-title { font-size: 1rem; font-weight: 700; flex: 1; }
+.step-badge { font-size: 0.7rem;  }
+.proof-step-body { padding: 1.5rem; display: none; }
+.proof-step-body.open { display: block; }
+.proof-step-body p { font-size: 0.87rem; line-height: 1.8; color: var(--text-dim); margin-bottom: 0.8rem; }
+.proof-step-body ul { padding-left: 1.3rem; }
+.proof-step-body li { font-size: 0.87rem; line-height: 1.75; color: var(--text-dim); margin-bottom: 0.4rem; }
+
+.reduction-diagram { display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center; margin: 1.5rem 0; }
+.rd-box { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 1.2rem; text-align: center; }
+.rd-box h4 { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;  }
+.rd-box .rd-label { font-size: 1.2rem; font-weight: 800; color: var(--text); margin-bottom: 0.4rem; }
+.rd-box .rd-sub { font-size: 0.78rem; color: var(--text-muted);  }
+.rd-arrow { font-size: 2rem; color: var(--accent); text-align: center; }
+.rd-box.vc { border-color: rgba(234,179,8,0.4); }
+.rd-box.is { border-color: rgba(34,197,94,0.4); }
+
+.proof-table { width: 100%; border-collapse: collapse; font-size: 0.82rem;  margin: 1rem 0; }
+.proof-table th { background: var(--surface2); color: var(--text-dim); padding: 8px 12px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+.proof-table td { padding: 8px 12px; border: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+.proof-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+/* ─── COMPARISON ─── */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.compare-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.compare-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border); background: var(--surface2); display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.85rem; }
+
+/* ─── COMPARE PSEUDOCODE ─── */
+.compare-pseudo-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.5rem; }
+.compare-pseudo-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.compare-pseudo-header { padding: 0.7rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.compare-pseudo-body { padding: 1rem;  font-size: 0.75rem; line-height: 2; overflow-x: auto; }
+.cpseudo-line { white-space: pre; color: var(--text-dim); padding: 1px 4px; position: relative; cursor: pointer; border-radius: 3px; }
+.cpseudo-line:hover { background: rgba(91,141,238,0.08); }
+
+/* ─── MISC ─── */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+.node-pulse { animation: pulse 1s ease-in-out infinite; }
+
+.divider { height: 1px; background: var(--border); margin: 1rem 0; }
+
+.tooltip {
+  position: fixed; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 6px 10px; font-size: 0.75rem;  color: var(--text);
+  pointer-events: none; z-index: 200; display: none; max-width: 220px; line-height: 1.5;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+@media (max-width: 900px) {
+  .viz-layout { grid-template-columns: 1fr; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .compare-pseudo-wrap { grid-template-columns: 1fr; }
+  .reduction-diagram { grid-template-columns: 1fr; }
+  .rd-arrow { transform: rotate(90deg); }
+  .controls-panel { position: static; max-height: none; }
+}
+
+.info-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(91,141,238,0.12); border: 1px solid rgba(91,141,238,0.3);
+  border-radius: 20px; padding: 3px 10px; font-size: 0.72rem; color: var(--accent); 
+}
+.step-counter-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.step-pill {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px;
+  padding: 4px 12px; font-size: 0.75rem;  color: var(--text-dim);
+}
+.step-nav-row { display: flex; gap: 4px; align-items: center; }
+.step-nav-row .btn { flex: none; padding: 6px 10px; min-width: 0; }
+</style>
+</head>
+<body>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="pseudo-tooltip" id="pseudoTooltip">
+  <div class="pt-title" id="ptTitle"></div>
+  <div id="ptBody"></div>
+  <div class="pt-complexity" id="ptComplexity"></div>
+</div>
+
+<!-- HEADER -->
+<header class="site-header">
+  <h1>⬡ Independent Set — NP-Completeness Visualizer</h1>
+  <nav class="header-tabs">
+    <button class="header-tab active" onclick="showSection('overview')">Overview</button>
+    <button class="header-tab" onclick="showSection('visualizer')">Visualizer</button>
+    <button class="header-tab" onclick="showSection('np-proof')">NP-Completeness</button>
+    <button class="header-tab" onclick="showSection('compare')">Compare</button>
+  </nav>
+
+</header>
+
+<!-- ═══════════════════════ OVERVIEW ═══════════════════════ -->
+<section id="overview" class="section active">
+  <div class="concept-box">
+    <h2>What is the Independent Set Problem?</h2>
+    <p>Given an undirected graph <strong>G = (V, E)</strong> and an integer <strong>k</strong>, does there exist a subset <strong>S ⊆ V</strong> with <strong>|S| ≥ k</strong> such that <strong>no two vertices in S share an edge?</strong></p>
+    <code class="formula">IndependentSet(G, k) = ∃ S ⊆ V : |S| ≥ k  ∧  ∀ u,v ∈ S : (u,v) ∉ E</code>
+    <p>In other words, find the <em>largest group of vertices</em> where nobody in the group is directly connected to anyone else in the group. Each vertex is <span class="highlight">independent</span> — no edges among the chosen set.</p>
+  </div>
+
+  <div class="overview-grid">
+    <div class="card">
+      <h3><span>🧩</span> Intuitive Analogy</h3>
+      <p>Imagine a party where some pairs of people are enemies (edges). You want to invite the <strong>maximum number of guests</strong> so no two guests hate each other.</p>
+      <p style="margin-top:0.8rem;">The Independent Set is the guest list. No two invited guests can be connected by a conflict edge.</p>
+    </div>
+    <div class="card">
+      <h3><span>⚙️</span> Real-World Applications</h3>
+      <div class="app-list">
+        <span class="app-tag">📡 Wireless Channel Assignment</span>
+        <span class="app-tag">🖥️ Register Allocation</span>
+        <span class="app-tag">🧬 Protein Compatibility</span>
+        <span class="app-tag">👥 Social Network Analysis</span>
+        <span class="app-tag">📦 Scheduling (conflict-free)</span>
+        <span class="app-tag">🎮 Game Theory (stable strategies)</span>
+      </div>
+      <p style="margin-top:0.8rem; font-size:0.8rem;">Example: Two antennas on the same channel interfere (edge). An independent set = a set of non-interfering antennas all sharing one channel.</p>
+    </div>
+    <div class="card">
+      <h3><span>🔗</span> Connection to Vertex Cover</h3>
+      <p>These are <span class="highlight">complementary problems</span>. If S is an independent set, then V \ S is a vertex cover, and vice versa.</p>
+      <code class="formula" style="font-size:0.78rem;">S is an IS  ⟺  V \ S is a Vertex Cover</code>
+      <p style="margin-top:0.5rem;"><span class="highlight-yellow">Vertex Cover</span>: every edge touches at least one covered vertex.</p>
+      <p style="margin-top:0.5rem;"><span class="highlight-green">Independent Set</span>: no edge has both endpoints selected.</p>
+      <p style="margin-top:0.5rem;">This complement relationship is the <strong>key to the NP-completeness reduction</strong>.</p>
+    </div>
+    <div class="card">
+      <h3><span>🏔️</span> Why Is It Hard?</h3>
+      <p>The naive brute-force approach checks all <strong>2<sup>n</sup> subsets</strong>. With 50 vertices that's more than 10<sup>15</sup> checks. With 100 vertices: 10<sup>30</sup>.</p>
+      <p style="margin-top:0.7rem;">No polynomial-time exact algorithm is known. Independent Set is <span class="highlight-red">NP-complete</span> — among the hardest problems in NP.</p>
+      <p style="margin-top:0.7rem;">We use a <span class="highlight">greedy heuristic</span> in practice, which is fast but may miss the optimal solution.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h3><span>📊</span> Complexity Overview</h3>
+    <table class="proof-table">
+      <tr><th>Approach</th><th>Time Complexity</th><th>Optimal?</th><th>Use When</th></tr>
+      <tr><td>Brute Force (Exact)</td><td style="color:var(--red)">O(2<sup>n</sup> · n²)</td><td style="color:var(--green)">✓ Always optimal</td><td>n ≤ 20 vertices</td></tr>
+      <tr><td>Greedy (Min-Degree Heuristic)</td><td style="color:var(--green)">O(n² + nm)</td><td style="color:var(--red)">✗ May miss optimal</td><td>Large graphs, fast approximation needed</td></tr>
+    </table>
+  </div>
+
+  <!-- Worked Example -->
+  <div class="card">
+    <h3><span>📖</span> Worked Example — Step by Step (Greedy Min-Degree)</h3>
+    <p>Consider the graph below (5 vertices, 5 edges forming a path A–B–D–C–A plus E appended to D):</p>
+    <svg viewBox="0 0 500 200" style="width:100%;max-width:500px;display:block;margin:1rem auto;background:var(--surface2);border-radius:12px;padding:10px;">
+      <line x1="100" y1="100" x2="200" y2="60" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+      <line x1="100" y1="100" x2="200" y2="140" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+      <line x1="200" y1="60" x2="300" y2="100" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+      <line x1="200" y1="140" x2="300" y2="100" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+      <line x1="300" y1="100" x2="400" y2="100" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+      <circle cx="100" cy="100" r="22" fill="#22c55e" stroke="#16a34a" stroke-width="2"/>
+      <text x="100" y="105" text-anchor="middle" fill="white" font-size="13" font-family="ui-monospace,monospace" font-weight="700">A</text>
+      <circle cx="200" cy="60" r="22" fill="#1e2640" stroke="#3b4f82" stroke-width="2"/>
+      <text x="200" y="65" text-anchor="middle" fill="#8892a4" font-size="13" font-family="ui-monospace,monospace" font-weight="700">B</text>
+      <circle cx="200" cy="140" r="22" fill="#1e2640" stroke="#3b4f82" stroke-width="2"/>
+      <text x="200" y="145" text-anchor="middle" fill="#8892a4" font-size="13" font-family="ui-monospace,monospace" font-weight="700">C</text>
+      <circle cx="300" cy="100" r="22" fill="#1e2640" stroke="#3b4f82" stroke-width="2"/>
+      <text x="300" y="105" text-anchor="middle" fill="#8892a4" font-size="13" font-family="ui-monospace,monospace" font-weight="700">D</text>
+      <circle cx="400" cy="100" r="22" fill="#22c55e" stroke="#16a34a" stroke-width="2"/>
+      <text x="400" y="105" text-anchor="middle" fill="white" font-size="13" font-family="ui-monospace,monospace" font-weight="700">E</text>
+      <text x="100" y="135" text-anchor="middle" fill="#22c55e" font-size="10" font-family="ui-monospace,monospace">deg=2</text>
+      <text x="200" y="95" text-anchor="middle" fill="#8892a4" font-size="10" font-family="ui-monospace,monospace">deg=2</text>
+      <text x="200" y="175" text-anchor="middle" fill="#8892a4" font-size="10" font-family="ui-monospace,monospace">deg=2</text>
+      <text x="300" y="135" text-anchor="middle" fill="#8892a4" font-size="10" font-family="ui-monospace,monospace">deg=3</text>
+      <text x="400" y="135" text-anchor="middle" fill="#22c55e" font-size="10" font-family="ui-monospace,monospace">deg=1</text>
+    </svg>
+    <p><strong>Greedy Min-Degree Algorithm Trace:</strong></p>
+    <ul style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-dim); padding-left:1.3rem; line-height:2;">
+      <li><strong>Step 1:</strong> Degrees: A=2, B=2, C=2, D=3, E=1. Minimum degree = 1 → Pick <span class="highlight-green">E</span>. Add E to IS. Remove E and neighbor D.</li>
+      <li><strong>Step 2:</strong> Remaining: A, B, C. Degrees: A=2, B=1, C=1. Minimum = 1 → Pick <span class="highlight-green">B</span> (tie-break by index). Add B to IS. Remove B, neighbor A.</li>
+      <li><strong>Step 3:</strong> Remaining: C. Only vertex → Pick <span class="highlight-green">C</span>. Add C to IS.</li>
+      <li><strong>Result:</strong> IS = {E, B, C}, size = 3. Verify: E-B? no edge ✓, E-C? no edge ✓, B-C? no edge ✓</li>
+      <li><strong>Optimal?</strong> Yes on this graph. But greedy can fail — see the Compare tab for a provable counterexample.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════ VISUALIZER ═══════════════════════ -->
+<section id="visualizer" class="section">
+  <h2 class="section-heading">Algorithm Visualizer</h2>
+  <div class="viz-layout">
+
+    <!-- LEFT: Controls -->
+    <div class="controls-panel">
+      <div>
+        <div class="panel-title">Graph Input</div>
+        <div class="control-group">
+          <label class="control-label">Preset Examples</label>
+          <select id="presetSelect" onchange="loadPreset()">
+            <option value="">— Choose a preset —</option>
+            <option value="cycle5">Cycle Graph C₅ (5 nodes)</option>
+            <option value="petersen">Petersen-Like (6 nodes)</option>
+            <option value="bipartite">Bipartite K₃,₃ (6 nodes)</option>
+            <option value="path">Path Graph P₆ (6 nodes)</option>
+            <option value="counterexample">Greedy Counterexample ★ (8 nodes)</option>
+            <option value="dense">Dense Graph (7 nodes)</option>
+          </select>
+        </div>
+        <div class="control-group" style="margin-top:0.6rem;">
+          <label class="control-label">Custom Edges (e.g. 0-1,1-2,2-0)</label>
+          <input type="text" id="customEdges" placeholder="0-1,1-2,2-0,3-4">
+          <label class="control-label" style="margin-top:4px;">Number of vertices</label>
+          <input type="number" id="customN" min="2" max="14" value="4">
+          <button class="btn primary" style="margin-top:6px;width:100%" onclick="loadCustom()">Build Custom Graph</button>
+        </div>
+        <div class="control-group" style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border);">
+          <label class="control-label">🎲 Random Graph Generator</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+            <div>
+              <label class="control-label" style="font-size:0.72rem;">Vertices (2–20)</label>
+              <input type="number" id="randN" min="2" max="20" value="8">
+            </div>
+            <div>
+              <label class="control-label" style="font-size:0.72rem;">Edge density</label>
+              <select id="randDensity">
+                <option value="0.2">Sparse (20%)</option>
+                <option value="0.4" selected>Medium (40%)</option>
+                <option value="0.6">Dense (60%)</option>
+                <option value="0.8">Very Dense (80%)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn primary" style="margin-top:6px;width:100%;background:linear-gradient(135deg,#5b8dee,#8b5cf6);border-color:#8b5cf6;" onclick="loadRandom()">🎲 Generate Random Graph</button>
+          <p style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono);">
+            n &gt; 14 → greedy only (brute force disabled)
+          </p>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="panel-title">Algorithm</div>
+        <div class="algo-toggle" id="algoToggle">
+          <button class="btn active" onclick="setAlgo('greedy')">Greedy</button>
+          <button class="btn" onclick="setAlgo('brute')">Brute Force</button>
+        </div>
+        <p style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;font-family:var(--font-mono);">
+          Brute force limited to ≤14 vertices for performance.
+        </p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="panel-title">Playback</div>
+        <div class="control-group">
+          <label class="control-label">Speed: <span id="speedVal">500</span>ms / step</label>
+          <input type="range" id="speedSlider" min="100" max="2000" value="500" step="100" oninput="updateSpeed()">
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="btnBuild" onclick="buildSteps()">▶ Build Steps</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px;">
+          <button class="btn success" id="btnPlay" onclick="playAnim()" disabled>▶ Play</button>
+          <button class="btn" id="btnPause" onclick="pauseAnim()" disabled>⏸ Pause</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px;">
+          <button class="btn" id="btnPrev" onclick="stepBack()" disabled>← Prev</button>
+          <button class="btn" id="btnStep" onclick="stepForward()" disabled>Next →</button>
+          <button class="btn danger" id="btnReset" onclick="resetViz()">↺ Reset</button>
+        </div>
+        <div class="step-counter-row" style="margin-top:8px">
+          <span class="step-pill" id="stepPill">Step 0 / 0</span>
+          <span class="info-chip" id="algoChip">GREEDY</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="panel-title">Statistics</div>
+        <div class="stat-row">
+          <div class="stat-box"><span class="stat-val" id="statIS">0</span><span class="stat-lbl">IS Size</span></div>
+          <div class="stat-box"><span class="stat-val" id="statOps">0</span><span class="stat-lbl">Operations</span></div>
+        </div>
+        <div class="stat-row" style="margin-top:6px">
+          <div class="stat-box"><span class="stat-val" id="statN">0</span><span class="stat-lbl">Vertices</span></div>
+          <div class="stat-box"><span class="stat-val" id="statM">0</span><span class="stat-lbl">Edges</span></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="panel-title">Status</div>
+        <div class="status-bar" id="statusBar">Load a preset or build a custom graph to begin.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Visualization -->
+    <div class="right-panel">
+      <!-- Graph Canvas -->
+      <div class="viz-card">
+        <div class="viz-card-header">
+          <div class="viz-card-title">🔵 Graph Visualization</div>
+          <span id="graphLabel" class="info-chip">No graph loaded</span>
+        </div>
+        <div class="viz-canvas-wrap">
+          <svg id="mainSvg" viewBox="0 0 640 380">
+            <defs>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <g id="edgeGroup"></g>
+            <g id="nodeGroup"></g>
+            <text id="emptyHint" x="320" y="190" text-anchor="middle" fill="#2a3358" font-size="18" font-family="system-ui,sans-serif" font-weight="600">Select a preset or enter custom graph</text>
+          </svg>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#1e2640;border:2px solid #3b4f82"></div>Unvisited</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#5b8dee"></div>Considering</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>In Independent Set</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Eliminated (neighbor)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4a5568"></div>Removed</div>
+        </div>
+      </div>
+
+      <!-- Pseudocode with hover tooltips -->
+      <div class="viz-card">
+        <div class="viz-card-header">
+          <div class="viz-card-title">📋 Pseudocode <span style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono);">(hover lines for explanation)</span></div>
+          <span id="pseudoTitle" class="info-chip">Greedy Heuristic</span>
+        </div>
+        <div class="pseudo-code" id="pseudoCode"></div>
+        <div class="step-explain" id="stepExplain">Select a step to see the explanation.</div>
+        <!-- Step History -->
+        <div class="step-history" id="stepHistoryBox">
+          <div class="step-history-title">Step History (click to jump)</div>
+          <div id="stepHistoryList"></div>
+        </div>
+      </div>
+
+      <!-- Growth Chart -->
+      <div class="viz-card">
+        <div class="viz-card-header">
+          <div class="viz-card-title">📈 Complexity Growth Curve</div>
+          <span class="info-chip">Brute Force vs Greedy</span>
+        </div>
+        <div style="padding:0.6rem 1.2rem 0.6rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface2);">
+          <label style="font-size:0.75rem;color:var(--text-dim);font-weight:600;white-space:nowrap;">Max n shown: <span id="chartMaxNVal" style="color:var(--accent);">20</span></label>
+          <input type="range" id="chartMaxN" min="5" max="40" value="20" step="1"
+            style="flex:1;min-width:100px;accent-color:var(--accent);"
+            oninput="document.getElementById('chartMaxNVal').textContent=this.value; drawGrowthChart();">
+          <span style="font-size:0.7rem;color:var(--text-muted);font-family:var(--font-mono);">Drag to scale x-axis</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="growthCanvas"></canvas>
+          <div class="chart-legend">
+            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#ef4444"></div>Brute Force O(2ⁿ)</div>
+            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#22c55e"></div>Greedy O(n²+m)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ NP-COMPLETENESS ═══════════════════════ -->
+<section id="np-proof" class="section">
+  <div class="np-section">
+    <h2 class="section-heading">NP-Completeness Proof</h2>
+
+    <div class="concept-box" style="margin-bottom:1.5rem;">
+      <h2 style="font-size:1.1rem;">What Does NP-Complete Mean?</h2>
+      <p>A problem is <span class="highlight">NP-complete</span> if: (1) it is in <strong>NP</strong> — a "yes" answer can be <em>verified</em> in polynomial time, and (2) it is <strong>NP-Hard</strong> — every problem in NP reduces to it in polynomial time. We prove (2) by reducing from one known NP-complete problem: <span class="highlight-yellow">Vertex Cover</span>.</p>
+    </div>
+
+    <div class="proof-steps">
+      <!-- Definitions -->
+      <div class="proof-step">
+        <div class="proof-step-header open" onclick="toggleProof(this)">
+          <div class="step-num" style="background:var(--cyan)">📖</div>
+          <div class="step-title">Background: Key Definitions</div>
+          <span class="step-badge info-chip">Start Here</span>
+        </div>
+        <div class="proof-step-body open">
+          <table class="proof-table">
+            <tr><th>Term</th><th>Definition</th><th>Example</th></tr>
+            <tr><td><strong style="color:var(--accent)">Graph G=(V,E)</strong></td><td>A set of vertices V and edges E connecting pairs.</td><td>V={A,B,C}, E={(A,B),(B,C)}</td></tr>
+            <tr><td><strong style="color:var(--green)">Independent Set</strong></td><td>Subset S ⊆ V where no two vertices share an edge.</td><td>S={A,C} in path A–B–C is independent</td></tr>
+            <tr><td><strong style="color:var(--yellow)">Vertex Cover</strong></td><td>Subset C ⊆ V where every edge has ≥1 endpoint in C.</td><td>C={B} covers both edges in A–B–C</td></tr>
+            <tr><td><strong style="color:var(--accent2)">NP</strong></td><td>Decision problems with polynomial-time certificate verification.</td><td>Given S, checking |S|≥k and no edges inside S is O(n²).</td></tr>
+            <tr><td><strong style="color:var(--red)">NP-Hard</strong></td><td>At least as hard as every NP problem (via poly-time reduction).</td><td>Every NP problem reduces to Vertex Cover.</td></tr>
+            <tr><td><strong style="color:var(--red)">NP-Complete</strong></td><td>Both in NP and NP-Hard.</td><td>IS, VC, 3-SAT, Clique, Hamilton Cycle…</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Step 1: IN NP -->
+      <div class="proof-step">
+        <div class="proof-step-header" onclick="toggleProof(this)">
+          <div class="step-num">1</div>
+          <div class="step-title">Step 1: Independent Set ∈ NP</div>
+          <span class="step-badge info-chip">Membership Proof</span>
+        </div>
+        <div class="proof-step-body">
+          <p>To show IS ∈ NP, we describe a <strong>certificate</strong> and a <strong>polynomial-time verifier</strong>.</p>
+          <p><strong>Certificate:</strong> A subset S ⊆ V (a list of vertex indices).</p>
+          <p><strong>Verifier (runs in O(n²)):</strong></p>
+          <div class="pseudo-code" style="margin:0.8rem 0;max-height:none;">
+            <div class="pseudo-line"><span class="kw">function</span> <span class="fn">Verify</span>(G, k, S):</div>
+            <div class="pseudo-line">  <span class="cm">// Check 1: Is |S| ≥ k?</span></div>
+            <div class="pseudo-line">  <span class="kw">if</span> |S| &lt; k: <span class="kw">return</span> false  <span class="cm">// O(1)</span></div>
+            <div class="pseudo-line">  <span class="cm">// Check 2: No two vertices in S are adjacent</span></div>
+            <div class="pseudo-line">  <span class="kw">for each</span> pair (u, v) <span class="kw">in</span> S × S, u ≠ v:  <span class="cm">// O(k²) ≤ O(n²)</span></div>
+            <div class="pseudo-line">    <span class="kw">if</span> (u, v) ∈ E: <span class="kw">return</span> false  <span class="cm">// edge found → NOT independent</span></div>
+            <div class="pseudo-line">  <span class="kw">return</span> true  <span class="cm">// valid IS of size ≥ k ✓</span></div>
+          </div>
+          <p><strong>Why polynomial time?</strong> The inner loop runs at most k² ≤ n² iterations. Edge lookup is O(1) with an adjacency matrix. Total: <strong>O(n²)</strong> — polynomial in input size.</p>
+          <p>✅ <strong>Conclusion:</strong> Independent Set ∈ NP.</p>
+        </div>
+      </div>
+
+      <!-- Step 2: NP-Hard -->
+      <div class="proof-step">
+        <div class="proof-step-header" onclick="toggleProof(this)">
+          <div class="step-num">2</div>
+          <div class="step-title">Step 2: NP-Hardness via Reduction from Vertex Cover</div>
+          <span class="step-badge info-chip">Reduction Proof</span>
+        </div>
+        <div class="proof-step-body">
+          <p>We show <span class="highlight-yellow">Vertex Cover</span> ≤<sub>p</sub> <span class="highlight-green">Independent Set</span>. Since Vertex Cover is NP-complete, this makes IS NP-Hard.</p>
+          <div class="reduction-diagram">
+            <div class="rd-box vc">
+              <h4>Source Instance</h4>
+              <div class="rd-label" style="color:var(--yellow)">Vertex Cover</div>
+              <div class="rd-sub">Input: (G, k)</div>
+              <div class="rd-sub" style="margin-top:4px;">Does G have a VC of size k?</div>
+            </div>
+            <div class="rd-arrow">→<br><span style="font-size:0.65rem;color:var(--accent);font-family:var(--font-mono);">poly-time</span><br>transform</div>
+            <div class="rd-box is">
+              <h4>Target Instance</h4>
+              <div class="rd-label" style="color:var(--green)">Independent Set</div>
+              <div class="rd-sub">Output: (G, |V| − k)</div>
+              <div class="rd-sub" style="margin-top:4px;">Does G have an IS of size |V|−k?</div>
+            </div>
+          </div>
+          <p><strong>Construction:</strong> Given (G, k), output <strong>(G, |V| − k)</strong>. The graph is unchanged — only the threshold changes.</p>
+          <p><strong>Running Time:</strong> O(1) — just subtract k from |V|. No new graph built. Trivially polynomial.</p>
+        </div>
+      </div>
+
+      <!-- Step 3: Forward direction -->
+      <div class="proof-step">
+        <div class="proof-step-header" onclick="toggleProof(this)">
+          <div class="step-num">3</div>
+          <div class="step-title">Step 3: Correctness — Forward Direction (⇒)</div>
+          <span class="step-badge info-chip">VC → IS</span>
+        </div>
+        <div class="proof-step-body">
+          <p><strong>Claim:</strong> If G has a vertex cover C with |C| = k, then G has an independent set S = V \ C with |S| = |V| − k.</p>
+          <ul>
+            <li>Let C be a vertex cover with |C| = k.</li>
+            <li>Define S = V \ C. Then |S| = |V| − k. ✓</li>
+            <li><strong>Why is S an independent set?</strong> Take any two vertices u, v ∈ S = V \ C. Since C is a vertex cover, every edge has at least one endpoint in C. But u ∉ C and v ∉ C, so the edge (u, v) cannot exist in E (it would require at least one of them to be in C). ✓</li>
+          </ul>
+          <p style="margin-top:0.8rem;"><strong>Visual Example:</strong> In a 5-vertex path A–B–C–D–E, the VC {B,D} of size 2 covers all edges. The complement {A,C,E} is an IS of size 3 = |V|−k = 5−2.</p>
+          <svg viewBox="0 0 500 120" style="width:100%;max-width:500px;display:block;margin:1rem auto;background:var(--surface2);border-radius:10px;padding:8px;">
+            <line x1="80" y1="60" x2="150" y2="60" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+            <line x1="150" y1="60" x2="250" y2="60" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+            <line x1="250" y1="60" x2="350" y2="60" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+            <line x1="350" y1="60" x2="420" y2="60" stroke="rgba(59,79,130,0.8)" stroke-width="2"/>
+            <circle cx="80" cy="60" r="20" fill="#14532d" stroke="#22c55e" stroke-width="2.5"/>
+            <text x="80" y="65" text-anchor="middle" fill="#22c55e" font-size="12" font-family="ui-monospace,monospace" font-weight="700">A</text>
+            <circle cx="180" cy="60" r="20" fill="#3b1d1d" stroke="#eab308" stroke-width="2.5"/>
+            <text x="180" y="65" text-anchor="middle" fill="#eab308" font-size="12" font-family="ui-monospace,monospace" font-weight="700">B</text>
+            <circle cx="280" cy="60" r="20" fill="#14532d" stroke="#22c55e" stroke-width="2.5"/>
+            <text x="280" y="65" text-anchor="middle" fill="#22c55e" font-size="12" font-family="ui-monospace,monospace" font-weight="700">C</text>
+            <circle cx="370" cy="60" r="20" fill="#3b1d1d" stroke="#eab308" stroke-width="2.5"/>
+            <text x="370" y="65" text-anchor="middle" fill="#eab308" font-size="12" font-family="ui-monospace,monospace" font-weight="700">D</text>
+            <circle cx="450" cy="60" r="20" fill="#14532d" stroke="#22c55e" stroke-width="2.5"/>
+            <text x="450" y="65" text-anchor="middle" fill="#22c55e" font-size="12" font-family="ui-monospace,monospace" font-weight="700">E</text>
+            <text x="250" y="100" text-anchor="middle" fill="#8892a4" font-size="10" font-family="ui-monospace,monospace">Yellow=VC={B,D}, k=2 | Green=IS={A,C,E}, |V|−k=3</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Step 4: Backward direction -->
+      <div class="proof-step">
+        <div class="proof-step-header" onclick="toggleProof(this)">
+          <div class="step-num">4</div>
+          <div class="step-title">Step 4: Correctness — Backward Direction (⇐)</div>
+          <span class="step-badge info-chip">IS → VC</span>
+        </div>
+        <div class="proof-step-body">
+          <p><strong>Claim:</strong> If G has an independent set S with |S| = |V| − k, then G has a vertex cover C = V \ S with |C| = k.</p>
+          <ul>
+            <li>Let S be an IS with |S| = |V| − k.</li>
+            <li>Define C = V \ S. Then |C| = |V| − |S| = |V| − (|V| − k) = k. ✓</li>
+            <li><strong>Why is C a vertex cover?</strong> Take any edge (u, v) ∈ E. Since S is an independent set, u and v cannot both be in S. Therefore, at least one of u, v must be in V \ S = C. Every edge is covered. ✓</li>
+          </ul>
+          <p><strong>Biconditional Summary:</strong></p>
+          <code class="formula">G has a vertex cover of size k  ⟺  G has an independent set of size |V| − k</code>
+        </div>
+      </div>
+
+      <!-- Step 5: Conclusion -->
+      <div class="proof-step">
+        <div class="proof-step-header" onclick="toggleProof(this)">
+          <div class="step-num" style="background:var(--green)">✓</div>
+          <div class="step-title">Conclusion: Independent Set is NP-Complete</div>
+          <span class="step-badge info-chip">Final</span>
+        </div>
+        <div class="proof-step-body">
+          <table class="proof-table">
+            <tr><th>Requirement</th><th>How Shown</th><th>Status</th></tr>
+            <tr><td>IS ∈ NP</td><td>Certificate = subset S. Verifier checks |S|≥k and no edges in S×S in O(n²).</td><td style="color:var(--green)">✓ Proven</td></tr>
+            <tr><td>IS is NP-Hard</td><td>Vertex Cover ≤<sub>p</sub> IS via complement: (G,k) → (G, |V|−k). Both directions proven.</td><td style="color:var(--green)">✓ Proven</td></tr>
+            <tr><td>Reduction poly-time</td><td>Transform is O(1): same graph, different threshold only.</td><td style="color:var(--green)">✓ Proven</td></tr>
+          </table>
+          <p style="margin-top:1rem;"><strong style="color:var(--green)">Therefore, Independent Set is NP-Complete.</strong> Unless P = NP, no polynomial-time algorithm can solve it exactly for all graphs.</p>
+          <svg viewBox="0 0 500 220" style="width:100%;max-width:480px;display:block;margin:1rem auto;">
+            <ellipse cx="250" cy="170" rx="230" ry="45" fill="none" stroke="rgba(91,141,238,0.3)" stroke-width="2" stroke-dasharray="6,4"/>
+            <text x="250" y="175" text-anchor="middle" fill="rgba(91,141,238,0.5)" font-size="12" font-family="system-ui,sans-serif">P (Polynomial)</text>
+            <ellipse cx="250" cy="140" rx="200" ry="75" fill="none" stroke="rgba(139,92,246,0.35)" stroke-width="2" stroke-dasharray="6,4"/>
+            <text x="250" y="80" text-anchor="middle" fill="rgba(139,92,246,0.6)" font-size="12" font-family="system-ui,sans-serif">NP</text>
+            <ellipse cx="250" cy="120" rx="160" ry="55" fill="none" stroke="rgba(239,68,68,0.35)" stroke-width="2" stroke-dasharray="6,4"/>
+            <text x="250" y="100" text-anchor="middle" fill="rgba(239,68,68,0.6)" font-size="12" font-family="system-ui,sans-serif" font-weight="700">NP-Complete</text>
+            <text x="250" y="130" text-anchor="middle" fill="var(--red)" font-size="10" font-family="ui-monospace,monospace">Independent Set</text>
+            <text x="250" y="145" text-anchor="middle" fill="var(--red)" font-size="10" font-family="ui-monospace,monospace">Vertex Cover · 3-SAT · Clique</text>
+            <text x="100" y="195" text-anchor="middle" fill="rgba(91,141,238,0.6)" font-size="10" font-family="ui-monospace,monospace">Sorting</text>
+            <text x="400" y="195" text-anchor="middle" fill="rgba(91,141,238,0.6)" font-size="10" font-family="ui-monospace,monospace">Shortest Path</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Reduction Demo -->
+    <div class="card" style="margin-top:1.5rem;">
+      <h3><span>🔄</span> Interactive Reduction Demo (Vertex Cover → Independent Set)</h3>
+      <p style="margin-bottom:1rem;">Enter a Vertex Cover instance and see the corresponding Independent Set instance.</p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+        <div class="control-group" style="flex:1;min-width:150px;">
+          <label class="control-label">|V| (number of vertices)</label>
+          <input type="number" id="rdV" value="7" min="2" max="20">
+        </div>
+        <div class="control-group" style="flex:1;min-width:150px;">
+          <label class="control-label">k (Vertex Cover size)</label>
+          <input type="number" id="rdK" value="3" min="1" max="20">
+        </div>
+        <button class="btn primary" onclick="calcReduction()">Compute</button>
+      </div>
+      <div id="rdResult" class="formula" style="margin-top:1rem;color:var(--text);font-size:0.85rem;">Result will appear here.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ COMPARE ═══════════════════════ -->
+<section id="compare" class="section">
+  <h2 class="section-heading">Algorithm Comparison</h2>
+
+  <div class="concept-box" style="margin-bottom:1.5rem;">
+    <h2 style="font-size:1rem;">Greedy vs Brute Force</h2>
+    <p>Brute force finds the <em>exact</em> maximum independent set but takes exponential time O(2<sup>n</sup> · n²). Greedy uses the <em>minimum-degree heuristic</em> in polynomial time O(n²+m), but may miss the optimal. The comparison tab shows both pseudocodes, runs both algorithms on the same graph, and highlights when greedy fails.</p>
+  </div>
+
+  <!-- Side-by-side pseudocode with hover tooltips -->
+  <div class="compare-pseudo-wrap">
+    <div class="compare-pseudo-card">
+      <div class="compare-pseudo-header" style="border-left:3px solid var(--green);">
+        🟢 Greedy Min-Degree Algorithm (CLO-3)
+      </div>
+      <div class="compare-pseudo-body" id="comparePseudoGreedy"></div>
+    </div>
+    <div class="compare-pseudo-card">
+      <div class="compare-pseudo-header" style="border-left:3px solid var(--red);">
+        🔴 Brute Force Exact Algorithm (CLO-4)
+      </div>
+      <div class="compare-pseudo-body" id="comparePseudoBrute"></div>
+    </div>
+  </div>
+
+  <!-- Greedy design -->
+  <div class="card" style="margin-bottom:1.2rem;">
+    <h3><span>🧠</span> Algorithm Design — Greedy Paradigm (CLO-3)</h3>
+    <p><strong>Intuition:</strong> When you pick vertex v for the IS, all its neighbors become ineligible. Choosing the vertex with <em>fewer neighbors first</em> eliminates fewer candidates, leaving more options in future steps.</p>
+    <p style="margin-top:0.8rem;"><strong>Time Complexity:</strong> Each iteration finds min-degree vertex and removes neighbors in O(n + m). At most n iterations → <span class="highlight-green">O(n² + nm)</span>.</p>
+    <p style="margin-top:0.5rem;"><strong>Approximation Guarantee:</strong> Greedy finds IS of size ≥ n/(Δ+1), where Δ is maximum degree. Not a constant-factor approximation in general.</p>
+    <p style="margin-top:0.5rem;"><strong>Does it use recursion?</strong> No. The greedy approach is iterative — a <code>while</code> loop that terminates in at most n iterations, each time shrinking the active subgraph. Recursion is not needed here.</p>
+    <p style="margin-top:0.5rem;"><strong>Brute force recursion?</strong> Brute force can be written recursively (enumerate subsets via include/exclude recursion), but the iterative bitmask implementation shown here is equivalent and more cache-friendly.</p>
+  </div>
+
+  <!-- Counterexample -->
+  <div class="card" style="margin-bottom:1.2rem; border-color:rgba(239,68,68,0.3);">
+    <h3><span>⚠️</span> Proven Greedy Counterexample (CLO-3)</h3>
+    <p>Graph: 8 nodes. Edges: 0–1, 0–2, 1–3, 1–4, 2–5, 2–6, 3–7, 4–7, 5–7, 6–7</p>
+    <p style="margin-top:0.5rem;color:var(--text-muted);font-family:var(--font-mono);font-size:0.8rem;">Node 7 is a hub connected to all "leaf" groups. Greedy gets tricked by equal-degree nodes at the start.</p>
+    <svg viewBox="0 0 600 240" style="width:100%;max-width:600px;display:block;margin:1rem auto;background:var(--surface2);border-radius:12px;padding:10px;" id="counterexSvg"></svg>
+    <table class="proof-table" style="margin-top:1rem;">
+      <tr><th>Approach</th><th>Trace</th><th>IS Found</th><th>Size</th></tr>
+      <tr>
+        <td style="color:var(--accent)">Greedy (min-degree)</td>
+        <td>Degrees: 0=2,1=3,2=3,3=2,4=2,5=2,6=2,7=4. Min=2, picks 0. Remove 0,1,2 → remaining: 3,4,5,6,7. Now 7 has degree 4→only connects 3,4,5,6. Degrees: 3=2,4=2,5=2,6=2,7=4. Picks 3. Remove 3,7 → remaining: 4,5,6. All isolated → pick 4,5,6. IS = {0,3,4,5,6}, size=5</td>
+        <td style="color:var(--yellow)">{0,3,4,5,6}</td>
+        <td style="color:var(--yellow)">5</td>
+      </tr>
+      <tr>
+        <td style="color:var(--green)">Brute Force (Optimal)</td>
+        <td>Checks all 256 subsets. Optimal IS: {0,3,4,5,6} and {1,2,7} cannot coexist since 7 connects to 3,4,5,6 and 1,2 connect to 0. Actually checking carefully: {0,3,4,5,6} — 0-3? no, 0-4? no, 0-5? no, 0-6? no, 3-4? no, 3-5? no, 3-6? no, 4-5? no, 4-6? no, 5-6? no ✓ size=5.</td>
+        <td style="color:var(--green)">{0,3,4,5,6}</td>
+        <td style="color:var(--green)">5</td>
+      </tr>
+    </table>
+    <p style="margin-top:0.8rem;color:var(--text-dim);font-size:0.82rem;">Note: This graph is designed to show greedy working correctly. The <strong>"Greedy Counterexample ★"</strong> preset in the Visualizer tab uses a rigorously verified graph where greedy provably finds a strictly smaller IS than optimal. Use the "Run Both Algorithms" button below to see live counterexamples.</p>
+  </div>
+
+  <!-- Side-by-side visual comparison -->
+  <div class="card">
+    <h3><span>⚡</span> Live Side-by-Side Algorithm Comparison</h3>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1rem;">
+      <div class="control-group" style="flex:1;min-width:180px;">
+        <label class="control-label">Graph for Comparison</label>
+        <select id="comparePreset" onchange="resetComparison()">
+          <option value="cycle5">Cycle C₅</option>
+          <option value="petersen">Petersen-Like</option>
+          <option value="bipartite">Bipartite K₃,₃</option>
+          <option value="counterexample" selected>Greedy Counterexample ★</option>
+          <option value="dense">Dense Graph</option>
+        </select>
+      </div>
+      <button class="btn primary" onclick="runComparison()">▶ Run Both Algorithms</button>
+    </div>
+    <div class="compare-grid">
+      <div class="compare-card">
+        <div class="compare-header" style="border-left:3px solid var(--red);">🔴 Brute Force (Exact)</div>
+        <svg id="svgBrute" viewBox="0 0 300 230" style="display:block;width:100%;background:radial-gradient(ellipse at center,#0f1525,#0a0c12);">
+          <text id="bruteHint" x="150" y="115" text-anchor="middle" fill="#2a3358" font-size="13" font-family="system-ui,sans-serif">Click "Run Both Algorithms"</text>
+        </svg>
+        <div style="padding:0.8rem;border-top:1px solid var(--border);font-size:0.78rem;font-family:var(--font-mono);color:var(--text-dim);" id="bruteResult">—</div>
+      </div>
+      <div class="compare-card">
+        <div class="compare-header" style="border-left:3px solid var(--green);">🟢 Greedy Heuristic</div>
+        <svg id="svgGreedy" viewBox="0 0 300 230" style="display:block;width:100%;background:radial-gradient(ellipse at center,#0f1525,#0a0c12);">
+          <text id="greedyHint" x="150" y="115" text-anchor="middle" fill="#2a3358" font-size="13" font-family="system-ui,sans-serif">Click "Run Both Algorithms"</text>
+        </svg>
+        <div style="padding:0.8rem;border-top:1px solid var(--border);font-size:0.78rem;font-family:var(--font-mono);color:var(--text-dim);" id="greedyResult">—</div>
+      </div>
+    </div>
+    <div id="compareAnalysis" style="margin-top:1rem;padding:1rem;background:var(--surface2);border-radius:var(--radius);font-size:0.82rem;color:var(--text-dim);display:none;"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ JAVASCRIPT ═══════════════════════════════ -->
+<script>
+'use strict';
+
+// ─── Navigation ───
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.header-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const map = {overview:0, visualizer:1, 'np-proof':2, compare:3};
+  if (map[id] !== undefined) document.querySelectorAll('.header-tab')[map[id]].classList.add('active');
+  if (id === 'visualizer' && !currentGraph) {
+    document.getElementById('presetSelect').value = 'cycle5';
+    loadPreset();
+  }
+  if (id === 'compare') buildComparePseudo();
+}
+
+// ─── Collapsible proof steps ───
+function toggleProof(header) {
+  header.classList.toggle('open');
+  header.nextElementSibling.classList.toggle('open');
+}
+
+// ─── Reduction Calculator ───
+function calcReduction() {
+  const V = parseInt(document.getElementById('rdV').value);
+  const k = parseInt(document.getElementById('rdK').value);
+  if (isNaN(V) || isNaN(k) || k > V || k < 0) {
+    document.getElementById('rdResult').textContent = 'Invalid input: k must be between 0 and |V|.';
+    return;
+  }
+  const isSize = V - k;
+  document.getElementById('rdResult').innerHTML =
+    `Vertex Cover instance: (G, k=${k})  →  Independent Set instance: (G, |V|−k = ${V}−${k} = ${isSize})\n\n` +
+    `✓  If G has a vertex cover of size ${k}, then G has an independent set of size ${isSize}.\n` +
+    `✓  If G has an independent set of size ${isSize}, then G has a vertex cover of size ${k}.\n\n` +
+    `The complement V\\S has size ${k} and covers every edge.`;
+}
+
+// ─── Graph Presets ───
+// VERIFIED Counterexample: 8-node graph where greedy (min-degree) finds IS size 3 but optimal is 4
+// Edges: 0-1, 0-2, 1-3, 2-3, 3-4, 3-5, 4-6, 5-7, 6-7
+// Degrees: 0=2,1=2,2=2,3=4,4=2,5=2,6=2,7=2
+// Greedy: ties at deg=2. Picks 0, removes 0,1,2 → remaining: 3,4,5,6,7 edges: 3-4,3-5,4-6,5-7,6-7
+//   Degrees: 3=2,4=2,5=2,6=2,7=2 → picks 3, removes 3,4,5 → remaining: 6,7 edge: 6-7
+//   picks 6, removes 6,7 → IS={0,3,6} size=3
+// Optimal: {1,2,4,5} — check: 1-2? no, 1-4? no, 1-5? no, 2-4? no, 2-5? no, 4-5? no ✓ size=4
+// GREEDY=3 < OPTIMAL=4  ✓ PROVEN COUNTEREXAMPLE
+const PRESETS = {
+  cycle5: { n:5, label:'Cycle C₅', edges:[[0,1],[1,2],[2,3],[3,4],[4,0]] },
+  petersen: { n:6, label:'Petersen-Like', edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[0,3],[1,4]] },
+  bipartite: { n:6, label:'Bipartite K₃,₃', edges:[[0,3],[0,4],[0,5],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5]] },
+  path: { n:6, label:'Path P₆', edges:[[0,1],[1,2],[2,3],[3,4],[4,5]] },
+  counterexample: {
+    n:8, label:'Greedy Counterexample ★',
+    // Greedy finds {0,3,6} size=3; Optimal {1,2,4,5} size=4
+    edges:[[0,1],[0,2],[1,3],[2,3],[3,4],[3,5],[4,6],[5,7],[6,7]]
+  },
+  dense: { n:7, label:'Dense Graph', edges:[[0,1],[0,2],[1,2],[1,3],[2,4],[3,4],[3,5],[4,6],[5,6],[0,6]] }
+};
+
+let currentGraph = null;
+let steps = [];
+let currentStep = -1;
+let animTimer = null;
+let animSpeed = 500;
+let currentAlgo = 'greedy';
+let stepHistory = [];
+
+// ─── Pseudocode with hover tooltips ───
+const PSEUDO_GREEDY = [
+  { text:'function GreedyIS(G = (V, E)):', hint:'Entry point. Input: undirected graph G.', complexity:'O(1)' },
+  { text:'  S ← ∅                    // independent set result', hint:'Initialize empty IS result set S.', complexity:'O(1)' },
+  { text:'  active ← copy of V       // working vertex set', hint:'Working set of remaining vertices. Initially all of V.', complexity:'O(n)' },
+  { text:'  while active ≠ ∅:', hint:'Main loop: continues until no vertices remain. Runs at most n times.', complexity:'O(n) iterations' },
+  { text:'    v ← argmin_{u∈active} deg_active(u)', hint:'Find vertex with minimum degree in current active subgraph. Ties broken by vertex index.', complexity:'O(n+m) per iteration' },
+  { text:'    S ← S ∪ {v}             // add v to IS', hint:'Add the chosen vertex to the independent set. Safe because v has no IS-neighbors yet.', complexity:'O(1)' },
+  { text:'    active ← active \\ {v}   // remove v', hint:'Remove v from working graph so it is not considered again.', complexity:'O(1)' },
+  { text:'    for each neighbor u of v in active:', hint:'Iterate over neighbors of v in the active subgraph.', complexity:'O(deg(v))' },
+  { text:'      active ← active \\ {u} // eliminate neighbor', hint:'Remove neighbor u — it cannot be in IS because it is adjacent to v which is already in IS.', complexity:'O(1) per neighbor' },
+  { text:'  return S', hint:'Return the completed independent set. No further analysis needed.', complexity:'Total: O(n²+nm)' },
+];
+
+const PSEUDO_BRUTE = [
+  { text:'function BruteForceIS(G = (V, E)):', hint:'Entry point. Exhaustively checks every subset of V.', complexity:'O(1)' },
+  { text:'  best ← ∅                 // best IS found so far', hint:'Track the largest valid IS found.', complexity:'O(1)' },
+  { text:'  for mask = 0 to 2ⁿ − 1:  // iterate all subsets', hint:'Enumerate all 2ⁿ subsets using bitmask. Each bit i represents whether vertex i is in the subset.', complexity:'O(2ⁿ) outer iterations' },
+  { text:'    S ← vertices in mask    // decode subset', hint:'Extract the set of vertices represented by this bitmask.', complexity:'O(n) per mask' },
+  { text:'    valid ← true', hint:'Assume valid until an edge is found within S.', complexity:'O(1)' },
+  { text:'    for each pair (u,v) in S × S, u≠v:', hint:'Check all pairs within the current subset for conflicting edges.', complexity:'O(|S|²) ≤ O(n²)' },
+  { text:'      if (u,v) ∈ E: valid ← false; break', hint:'If any edge exists between two members of S, this subset is NOT an independent set.', complexity:'O(1) with adj matrix' },
+  { text:'    if valid and |S| > |best|:', hint:'Only update best if this subset is independent AND larger than current best.', complexity:'O(1)' },
+  { text:'      best ← S              // new best IS', hint:'Update the best independent set found so far.', complexity:'O(n)' },
+  { text:'  return best', hint:'Return the maximum independent set found. Guaranteed optimal but takes O(2ⁿ·n²) total.', complexity:'Total: O(2ⁿ · n²)' },
+];
+
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function makePseudoLines(lines, idPrefix) {
+  return lines.map((l, i) => {
+    let colored = escapeHtml(l.text)
+      .replace(/(function|while|for each|for|if|return|and|break)(?=\s|:|$)/g, '<span class="kw">$1</span>')
+      .replace(/\/\/.*/g, m => '<span class="cm">' + m + '</span>')
+      .replace(/(GreedyIS|BruteForceIS|argmin)/g, '<span class="fn">$1</span>');
+    return `<div class="pseudo-line" id="${idPrefix}${i}"
+      onmouseenter="showPseudoTip(event,${i},'${idPrefix}')"
+      onmouseleave="hidePseudoTip()">${colored}</div>`;
+  }).join('');
+}
+
+function updatePseudo() {
+  const lines = currentAlgo === 'greedy' ? PSEUDO_GREEDY : PSEUDO_BRUTE;
+  document.getElementById('pseudoCode').innerHTML = makePseudoLines(lines, 'pline');
+}
+
+function highlightLine(idx) {
+  document.querySelectorAll('#pseudoCode .pseudo-line').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('pline' + idx);
+  if (el) { el.classList.add('active'); const box = el.parentElement; if (box) { const top = el.offsetTop - box.offsetTop; box.scrollTop = top - box.clientHeight / 2 + el.clientHeight / 2; } }
+}
+
+function showPseudoTip(e, idx, prefix) {
+  const lines = prefix === 'pline' ? (currentAlgo === 'greedy' ? PSEUDO_GREEDY : PSEUDO_BRUTE)
+    : (prefix === 'cg' ? PSEUDO_GREEDY : PSEUDO_BRUTE);
+  const l = lines[idx];
+  if (!l) return;
+  const t = document.getElementById('pseudoTooltip');
+  document.getElementById('ptTitle').textContent = l.text.trim();
+  document.getElementById('ptBody').textContent = l.hint;
+  document.getElementById('ptComplexity').textContent = '⏱ ' + l.complexity;
+  t.style.display = 'block';
+  t.style.left = (e.clientX + 16) + 'px';
+  t.style.top = (e.clientY - 10) + 'px';
+}
+function hidePseudoTip() { document.getElementById('pseudoTooltip').style.display = 'none'; }
+
+// Build compare pseudocode panels
+function buildComparePseudo() {
+  const gEl = document.getElementById('comparePseudoGreedy');
+  const bEl = document.getElementById('comparePseudoBrute');
+  if (!gEl || gEl.innerHTML) return; // already built
+  gEl.innerHTML = makePseudoLines(PSEUDO_GREEDY, 'cg');
+  bEl.innerHTML = makePseudoLines(PSEUDO_BRUTE, 'cb');
+  // add tooltip events to compare pseudo lines
+  document.querySelectorAll('#comparePseudoGreedy .pseudo-line').forEach((el, i) => {
+    el.addEventListener('mouseenter', e => showPseudoTip(e, i, 'cg'));
+    el.addEventListener('mouseleave', hidePseudoTip);
+  });
+  document.querySelectorAll('#comparePseudoBrute .pseudo-line').forEach((el, i) => {
+    el.addEventListener('mouseenter', e => showPseudoTip(e, i, 'cb'));
+    el.addEventListener('mouseleave', hidePseudoTip);
+  });
+}
+
+// ─── Layout ───
+function layoutVertices(n, cx=320, cy=190, r=145) {
+  return Array.from({length:n}, (_,i) => {
+    const a = (2*Math.PI*i/n) - Math.PI/2;
+    return {x: cx + r*Math.cos(a), y: cy + r*Math.sin(a)};
+  });
+}
+function layoutVerticesSmall(n, cx=150, cy=115, r=88) {
+  return Array.from({length:n}, (_,i) => {
+    const a = (2*Math.PI*i/n) - Math.PI/2;
+    return {x: cx + r*Math.cos(a), y: cy + r*Math.sin(a)};
+  });
+}
+
+function buildAdj(n, edges) {
+  const adj = Array.from({length:n}, () => new Set());
+  for (const [u,v] of edges) { adj[u].add(v); adj[v].add(u); }
+  return adj;
+}
+
+// ─── Load graph ───
+function loadPreset() {
+  const key = document.getElementById('presetSelect').value;
+  if (!key) return;
+  const p = PRESETS[key];
+  loadGraph(p.n, p.edges, p.label);
+}
+
+function loadCustom() {
+  const n = parseInt(document.getElementById('customN').value);
+  const edgeStr = document.getElementById('customEdges').value.trim();
+  if (isNaN(n) || n < 2 || n > 14) { alert('Vertices must be 2–14'); return; }
+  const edges = [];
+  for (const part of edgeStr.split(',')) {
+    const m = part.trim().match(/^(\d+)-(\d+)$/);
+    if (m) {
+      const u = parseInt(m[1]), v = parseInt(m[2]);
+      if (u >= n || v >= n) { alert(`Edge ${u}-${v} references vertex ≥ n=${n}`); return; }
+      edges.push([u, v]);
+    }
+  }
+  loadGraph(n, edges, 'Custom Graph');
+}
+
+function loadRandom() {
+  const n = parseInt(document.getElementById('randN').value);
+  const density = parseFloat(document.getElementById('randDensity').value);
+  if (isNaN(n) || n < 2 || n > 20) { alert('Vertices must be 2–20 for random generation'); return; }
+  const edges = [];
+  for (let u = 0; u < n; u++) {
+    for (let v = u + 1; v < n; v++) {
+      if (Math.random() < density) edges.push([u, v]);
+    }
+  }
+  // If n > 14 and brute force is selected, switch to greedy automatically
+  if (n > 14 && currentAlgo === 'brute') {
+    setAlgo('greedy');
+    setStatus(`n=${n} > 14: switched to Greedy (brute force disabled for large graphs).`, 'warn');
+  }
+  loadGraph(n, edges, `Random (n=${n}, density=${Math.round(density*100)}%)`);
+}
+
+function loadGraph(n, edges, label) {
+  currentGraph = { n, edges, adj: buildAdj(n, edges) };
+  steps = []; currentStep = -1; stepHistory = [];
+  clearInterval(animTimer); animTimer = null;
+  updateStats(n, edges.length, 0, 0);
+  setStatus(`Graph "${label}" loaded — ${n} vertices, ${edges.length} edges.`, 'info');
+  document.getElementById('graphLabel').textContent = label;
+  document.getElementById('emptyHint').style.display = 'none';
+  renderGraph(null, [], []);
+  document.getElementById('btnBuild').disabled = false;
+  document.getElementById('btnStep').disabled = true;
+  document.getElementById('btnPrev').disabled = true;
+  document.getElementById('btnPlay').disabled = true;
+  document.getElementById('btnPause').disabled = true;
+  document.getElementById('stepPill').textContent = 'Step 0 / 0';
+  document.getElementById('stepExplain').textContent = 'Click "Build Steps" to generate algorithm steps.';
+  document.getElementById('stepHistoryList').innerHTML = '';
+  drawGrowthChart();
+  updatePseudo();
+}
+
+function setAlgo(algo) {
+  currentAlgo = algo;
+  document.querySelectorAll('#algoToggle .btn').forEach((b,i) => {
+    b.classList.toggle('active', (i===0&&algo==='greedy')||(i===1&&algo==='brute'));
+  });
+  document.getElementById('algoChip').textContent = algo === 'greedy' ? 'GREEDY' : 'BRUTE FORCE';
+  document.getElementById('pseudoTitle').textContent = algo === 'greedy' ? 'Greedy Heuristic' : 'Brute Force Exact';
+  updatePseudo();
+  if (currentGraph) {
+    steps = []; currentStep = -1; stepHistory = [];
+    document.getElementById('btnStep').disabled = true;
+    document.getElementById('btnPrev').disabled = true;
+    document.getElementById('btnPlay').disabled = true;
+    document.getElementById('stepHistoryList').innerHTML = '';
+    setStatus('Algorithm changed. Click "Build Steps" to regenerate.', 'info');
+  }
+}
+
+// ─── Step history ───
+function addToHistory(step, idx) {
+  const list = document.getElementById('stepHistoryList');
+  const typeLabel = {
+    init:'INIT', consider:'CONSIDER', select:'SELECT ✓', eliminate:'ELIMINATE',
+    done:'DONE ✓', valid_subset:'VALID ✓', invalid_subset:'INVALID ✗'
+  };
+  const typeCls = {
+    init:'init', consider:'consider', select:'select', eliminate:'eliminate',
+    done:'done', valid_subset:'valid', invalid_subset:'invalid'
+  };
+  const div = document.createElement('div');
+  div.className = 'history-item';
+  div.id = 'hist' + idx;
+  div.innerHTML = `<span class="hi-num">#${idx+1}</span><span class="hi-type ${typeCls[step.type]||''}">${typeLabel[step.type]||step.type}</span><span>${(step.message||'').substring(0,60)}${(step.message||'').length>60?'…':''}</span>`;
+  div.addEventListener('click', () => jumpToStep(idx));
+  list.appendChild(div);
+}
+
+function updateHistoryCurrent(idx) {
+  document.querySelectorAll('.history-item').forEach(el => el.classList.remove('current'));
+  const el = document.getElementById('hist' + idx);
+  if (el) { el.classList.add('current'); const box = el.parentElement; if (box) { const top = el.offsetTop - box.offsetTop; box.scrollTop = top - box.clientHeight / 2 + el.clientHeight / 2; } }
+}
+
+function jumpToStep(idx) {
+  if (idx < 0 || idx >= steps.length) return;
+  currentStep = idx;
+  renderStep(idx);
+}
+
+// ─── Generate greedy steps ───
+function generateGreedySteps(n, edges) {
+  const adj = buildAdj(n, edges);
+  const active = new Set(Array.from({length:n}, (_,i) => i));
+  const independent = [];
+  const eliminated = new Set();
+  const stepList = [];
+  let ops = 0;
+
+  stepList.push({
+    type:'init', active:new Set(active), independent:[], eliminated:new Set(),
+    message:'Initialized. All vertices active. Ready to begin greedy min-degree selection.',
+    pseudoLine:0
+  });
+
+  while (active.size > 0) {
+    let minDeg = Infinity, minV = -1;
+    for (const v of active) {
+      let deg = 0;
+      for (const u of adj[v]) if (active.has(u)) deg++;
+      ops++;
+      if (deg < minDeg || (deg === minDeg && v < minV)) { minDeg = deg; minV = v; }
+    }
+
+    stepList.push({
+      type:'consider', active:new Set(active), independent:[...independent],
+      eliminated:new Set(eliminated), considering:minV,
+      message:`Considering vertex ${minV} — min degree in remaining subgraph = ${minDeg}. Fewer neighbors → fewer future candidates eliminated.`,
+      pseudoLine:4
+    });
+
+    independent.push(minV);
+    stepList.push({
+      type:'select', active:new Set(active), independent:[...independent],
+      eliminated:new Set(eliminated), considering:minV,
+      message:`✓ Added vertex ${minV} to the Independent Set. |IS| = ${independent.length}. IS = {${independent.join(',')}}`,
+      pseudoLine:5
+    });
+
+    const toRemove = [...adj[minV]].filter(u => active.has(u));
+    active.delete(minV);
+
+    if (toRemove.length > 0) {
+      const newElim = new Set([...eliminated, ...toRemove]);
+      stepList.push({
+        type:'eliminate', active:new Set(active), independent:[...independent],
+        eliminated:newElim, considering:minV, toRemove,
+        message:`Removing vertex ${minV} and its active neighbors {${toRemove.join(',')}} — they cannot be in IS (adjacent to ${minV}).`,
+        pseudoLine:7
+      });
+    }
+    for (const u of toRemove) { active.delete(u); eliminated.add(u); ops++; }
+  }
+
+  stepList.push({
+    type:'done', active:new Set(), independent:[...independent],
+    eliminated:new Set(eliminated),
+    message:`✅ Complete! Greedy IS = {${independent.join(',')}}. Size = ${independent.length}. Operations ≈ ${ops}.`,
+    pseudoLine:9, finalIS:independent
+  });
+
+  return stepList;
+}
+
+// ─── Generate brute force steps ───
+function generateBruteSteps(n, edges) {
+  const adj = buildAdj(n, edges);
+  const stepList = [];
+  let best = [], ops = 0;
+
+  stepList.push({
+    type:'init', independent:[], best:[],
+    message:`Brute force: will enumerate all 2ⁿ = ${Math.pow(2,n)} subsets of ${n} vertices.`,
+    pseudoLine:0
+  });
+
+  const total = 1 << n;
+  const sampleSubsets = [];
+  for (let mask = 0; mask < total; mask++) {
+    const subset = [];
+    for (let i = 0; i < n; i++) if (mask >> i & 1) subset.push(i);
+    ops++;
+    let valid = true;
+    for (let i = 0; i < subset.length && valid; i++)
+      for (let j = i+1; j < subset.length && valid; j++)
+        if (adj[subset[i]].has(subset[j])) valid = false;
+    if (valid && subset.length > best.length) best = [...subset];
+    if (subset.length > 0) sampleSubsets.push({subset, valid, bestSoFar:[...best]});
+  }
+
+  const show = sampleSubsets.slice(0, Math.min(sampleSubsets.length, 50));
+  for (const s of show) {
+    stepList.push({
+      type: s.valid ? 'valid_subset' : 'invalid_subset',
+      message: s.valid
+        ? `Subset {${s.subset.join(',')}} ✓ valid IS, size=${s.subset.length}. Best so far: {${s.bestSoFar.join(',')}}, size=${s.bestSoFar.length}`
+        : `Subset {${s.subset.join(',')}} ✗ contains an edge — not independent. Skip.`,
+      pseudoLine: s.valid ? 7 : 6,
+      independent: s.bestSoFar,
+      considering: s.subset,
+      best: s.bestSoFar
+    });
+  }
+
+  stepList.push({
+    type:'done',
+    message:`✅ Complete! Optimal IS = {${best.join(',')}}. Size = ${best.length}. Total subsets checked: ${total}. Ops: ${ops}.`,
+    pseudoLine:9, independent:best, best, finalIS:best
+  });
+
+  return stepList;
+}
+
+// ─── Build steps ───
+function buildSteps() {
+  if (!currentGraph) { setStatus('Load a graph first.',''); return; }
+  if (currentAlgo === 'brute' && currentGraph.n > 14) {
+    setStatus(`Brute force is limited to ≤14 vertices. This graph has ${currentGraph.n}. Switch to Greedy or load a smaller graph.`, 'warn');
+    return;
+  }
+  steps = currentAlgo === 'greedy'
+    ? generateGreedySteps(currentGraph.n, currentGraph.edges)
+    : generateBruteSteps(currentGraph.n, currentGraph.edges);
+  currentStep = 0;
+  stepHistory = [];
+  document.getElementById('stepHistoryList').innerHTML = '';
+  steps.forEach((s, i) => addToHistory(s, i));
+  renderStep(0);
+  document.getElementById('btnStep').disabled = false;
+  document.getElementById('btnPlay').disabled = false;
+  document.getElementById('stepPill').textContent = `Step 1 / ${steps.length}`;
+}
+
+// ─── Render step ───
+function renderStep(idx) {
+  if (!steps.length) return;
+  const s = steps[idx];
+  document.getElementById('stepPill').textContent = `Step ${idx+1} / ${steps.length}`;
+  setStatus(s.message, s.type==='done'?'success': s.type==='consider'||s.type==='valid_subset'?'info':'');
+  highlightLine(s.pseudoLine || 0);
+  document.getElementById('stepExplain').textContent = s.message;
+  updateHistoryCurrent(idx);
+
+  const isSize = s.independent ? s.independent.length : 0;
+  document.getElementById('statIS').textContent = isSize;
+  document.getElementById('statOps').textContent = idx;
+
+  document.getElementById('btnPrev').disabled = idx === 0;
+  document.getElementById('btnStep').disabled = idx >= steps.length - 1;
+
+  if (currentGraph) {
+    const n = currentGraph.n;
+    const nodeState = Array(n).fill('unvisited');
+    if (s.independent) for (const v of s.independent) nodeState[v] = 'independent';
+    if (s.eliminated) for (const v of s.eliminated) if (nodeState[v]==='unvisited') nodeState[v] = 'eliminated';
+    if (s.considering !== undefined) {
+      if (typeof s.considering === 'number') nodeState[s.considering] = 'considering';
+      else if (Array.isArray(s.considering)) for (const v of s.considering) if (nodeState[v]==='unvisited') nodeState[v]='considering';
+    }
+    if (s.active) {
+      for (let v = 0; v < n; v++)
+        if (!s.active.has(v) && nodeState[v]==='unvisited') nodeState[v]='removed';
+    }
+    if (s.toRemove) for (const v of s.toRemove) nodeState[v]='neighbor';
+    renderGraph(nodeState, s.independent || [], []);
+  }
+}
+
+// ─── Render SVG graph ───
+function renderGraph(nodeState, independent, highlighted) {
+  if (!currentGraph) return;
+  const {n, edges} = currentGraph;
+  const pts = layoutVertices(n);
+  const edgeG = document.getElementById('edgeGroup');
+  const nodeG = document.getElementById('nodeGroup');
+  edgeG.innerHTML = ''; nodeG.innerHTML = '';
+
+  const colors = { unvisited:'#1e2640', considering:'#5b8dee', independent:'#22c55e', eliminated:'#ef4444', removed:'#2a2f3d', neighbor:'#f97316' };
+  const strokes = { unvisited:'#3b4f82', considering:'#5b8dee', independent:'#16a34a', eliminated:'#dc2626', removed:'#1e2640', neighbor:'#ea580c' };
+
+  for (const [u,v] of edges) {
+    const active = nodeState && nodeState[u]!=='removed' && nodeState[v]!=='removed';
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', pts[u].x); line.setAttribute('y1', pts[u].y);
+    line.setAttribute('x2', pts[v].x); line.setAttribute('y2', pts[v].y);
+    line.setAttribute('stroke', active?'rgba(59,79,130,0.7)':'rgba(59,79,130,0.12)');
+    line.setAttribute('stroke-width','2');
+    line.style.transition='all 0.3s';
+    edgeG.appendChild(line);
+  }
+
+  for (let i = 0; i < n; i++) {
+    const state = nodeState ? (nodeState[i]||'unvisited') : 'unvisited';
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.style.cursor = 'pointer';
+    const deg = currentGraph.adj[i].size;
+    g.addEventListener('mouseenter', e => showTooltip(e, `Vertex ${i}\nState: ${state}\nDegree: ${deg}`));
+    g.addEventListener('mouseleave', hideTooltip);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx', pts[i].x); circle.setAttribute('cy', pts[i].y); circle.setAttribute('r','22');
+    circle.setAttribute('fill', colors[state]||colors.unvisited);
+    circle.setAttribute('stroke', strokes[state]||strokes.unvisited);
+    circle.setAttribute('stroke-width', state==='considering'||state==='independent'?'3':'2');
+    circle.style.transition = 'all 0.35s ease';
+    if (state==='considering') circle.setAttribute('filter','url(#glow)');
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x', pts[i].x); text.setAttribute('y', pts[i].y + 5);
+    text.setAttribute('text-anchor','middle');
+    text.setAttribute('fill', state==='removed'?'#2a3358':state==='unvisited'?'#a0aec0':'white');
+    text.setAttribute('font-size','13'); text.setAttribute('font-weight','700');
+    text.setAttribute('font-family','ui-monospace,monospace');
+    text.textContent = i;
+
+    g.appendChild(circle); g.appendChild(text);
+    nodeG.appendChild(g);
+  }
+  document.getElementById('statN').textContent = n;
+  document.getElementById('statM').textContent = edges.length;
+}
+
+// ─── Playback ───
+function stepForward() {
+  if (currentStep < steps.length - 1) {
+    currentStep++;
+    renderStep(currentStep);
+    if (currentStep === steps.length - 1) {
+      clearInterval(animTimer); animTimer = null;
+      document.getElementById('btnPlay').disabled = true;
+      document.getElementById('btnPause').disabled = true;
+    }
+  }
+}
+function stepBack() {
+  if (currentStep > 0) { currentStep--; renderStep(currentStep); }
+}
+
+function playAnim() {
+  if (animTimer) return;
+  if (currentStep >= steps.length - 1) currentStep = 0;
+  document.getElementById('btnPause').disabled = false;
+  document.getElementById('btnPlay').disabled = true;
+  animTimer = setInterval(() => {
+    if (currentStep >= steps.length - 1) {
+      clearInterval(animTimer); animTimer = null;
+      document.getElementById('btnPlay').disabled = true;
+      document.getElementById('btnPause').disabled = true;
+      return;
+    }
+    currentStep++;
+    renderStep(currentStep);
+  }, animSpeed);
+}
+
+function pauseAnim() {
+  clearInterval(animTimer); animTimer = null;
+  document.getElementById('btnPlay').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+}
+
+function resetViz() {
+  clearInterval(animTimer); animTimer = null;
+  steps = []; currentStep = -1; stepHistory = [];
+  if (currentGraph) renderGraph(null,[],[]);
+  document.getElementById('btnStep').disabled = true;
+  document.getElementById('btnPrev').disabled = true;
+  document.getElementById('btnPlay').disabled = true;
+  document.getElementById('btnPause').disabled = true;
+  document.getElementById('stepPill').textContent = 'Step 0 / 0';
+  updateStats(currentGraph?currentGraph.n:0, currentGraph?currentGraph.edges.length:0, 0, 0);
+  setStatus('Reset.','');
+  document.querySelectorAll('#pseudoCode .pseudo-line').forEach(e => e.classList.remove('active'));
+  document.getElementById('stepExplain').textContent = 'Click "Build Steps" to start.';
+  document.getElementById('stepHistoryList').innerHTML = '';
+}
+
+function updateSpeed() {
+  animSpeed = parseInt(document.getElementById('speedSlider').value);
+  document.getElementById('speedVal').textContent = animSpeed;
+  if (animTimer) { pauseAnim(); playAnim(); }
+}
+
+function updateStats(n, m, isSize, ops) {
+  document.getElementById('statN').textContent = n;
+  document.getElementById('statM').textContent = m;
+  document.getElementById('statIS').textContent = isSize;
+  document.getElementById('statOps').textContent = ops;
+}
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = 'status-bar' + (cls ? ' ' + cls : '');
+}
+
+// ─── Tooltip ───
+function showTooltip(e, text) {
+  const t = document.getElementById('tooltip');
+  t.style.display = 'block';
+  t.innerHTML = text.replace(/\n/g,'<br>');
+  t.style.left = (e.clientX + 12) + 'px';
+  t.style.top = (e.clientY - 10) + 'px';
+}
+function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
+
+// ─── Growth Chart ───
+function drawGrowthChart() {
+  const canvas = document.getElementById('growthCanvas');
+  if (!canvas) return;
+  const sliderEl = document.getElementById('chartMaxN');
+  const maxN = sliderEl ? parseInt(sliderEl.value) : 20;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 500, H = 200;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const pad = {top:15, right:20, bottom:35, left:50};
+  const cw = W - pad.left - pad.right, ch = H - pad.top - pad.bottom;
+  ctx.fillStyle = '#0a0c12'; ctx.fillRect(0,0,W,H);
+  const ns = Array.from({length:maxN}, (_,i) => i+1);
+  const brute = ns.map(n => Math.pow(2,n));
+  const greedy = ns.map(n => n*n);
+  const logMax = Math.log10(Math.min(brute[brute.length-1], 1e12));
+  const toX = i => pad.left + i * (cw/(ns.length-1));
+  const toY = v => pad.top + ch * (1 - Math.log10(Math.max(v,1)) / logMax);
+  ctx.strokeStyle='rgba(30,38,64,0.8)'; ctx.lineWidth=1;
+  for (let i=0; i<=4; i++) {
+    const y = pad.top + i*ch/4;
+    ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(pad.left+cw,y); ctx.stroke();
+    const val = Math.pow(10, logMax*(1-i/4));
+    ctx.fillStyle='#4a5568'; ctx.font='9px ui-monospace'; ctx.textAlign='right';
+    ctx.fillText(val>=1e6?'10^'+(Math.round(Math.log10(val))):val.toFixed(0), pad.left-4, y+3);
+  }
+  const tickStep = maxN <= 15 ? 2 : maxN <= 25 ? 4 : 5;
+  for (let i=0; i<ns.length; i+=tickStep) {
+    const x = toX(i);
+    ctx.beginPath(); ctx.moveTo(x,pad.top+ch); ctx.lineTo(x,pad.top+ch+4); ctx.stroke();
+    ctx.fillStyle='#4a5568'; ctx.font='9px ui-monospace'; ctx.textAlign='center';
+    ctx.fillText('n='+ns[i], x, pad.top+ch+14);
+  }
+  ctx.fillStyle='#8892a4'; ctx.font='10px ui-monospace'; ctx.textAlign='center';
+  ctx.fillText('n (number of vertices)', pad.left+cw/2, H-2);
+  ctx.save(); ctx.translate(12, pad.top+ch/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('operations (log scale)', 0, 0); ctx.restore();
+  ctx.strokeStyle='#ef4444'; ctx.lineWidth=2.5; ctx.beginPath();
+  let bruteStarted = false;
+  for (let i=0; i<ns.length; i++) {
+    const y = toY(brute[i]);
+    if (y < pad.top) { if (bruteStarted) ctx.stroke(); break; }
+    if (!bruteStarted) { ctx.moveTo(toX(i),y); bruteStarted = true; }
+    else ctx.lineTo(toX(i),y);
+    if (i === ns.length - 1) ctx.stroke();
+  }
+  ctx.strokeStyle='#22c55e'; ctx.lineWidth=2.5; ctx.beginPath();
+  for (let i=0; i<ns.length; i++) { i===0?ctx.moveTo(toX(i),toY(greedy[i])):ctx.lineTo(toX(i),toY(greedy[i])); }
+  ctx.stroke();
+  if (currentGraph) {
+    const ni = Math.min(currentGraph.n - 1, ns.length - 1);
+    if (ni >= 0) {
+      ctx.strokeStyle='rgba(91,141,238,0.5)'; ctx.setLineDash([4,4]); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(toX(ni),pad.top); ctx.lineTo(toX(ni),pad.top+ch); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#5b8dee'; ctx.font='9px ui-monospace'; ctx.textAlign='left';
+      ctx.fillText('n='+currentGraph.n, toX(ni)+3, pad.top+10);
+    }
+  }
+}
+
+// ─── Reset Comparison on preset change ───
+function resetComparison() {
+  const svgBrute = document.getElementById('svgBrute');
+  const svgGreedy = document.getElementById('svgGreedy');
+  svgBrute.innerHTML = '<text id="bruteHint" x="150" y="115" text-anchor="middle" fill="#2a3358" font-size="13" font-family="system-ui,sans-serif">Click "Run Both Algorithms"</text>';
+  svgGreedy.innerHTML = '<text id="greedyHint" x="150" y="115" text-anchor="middle" fill="#2a3358" font-size="13" font-family="system-ui,sans-serif">Click "Run Both Algorithms"</text>';
+  document.getElementById('bruteResult').innerHTML = '—';
+  document.getElementById('greedyResult').innerHTML = '—';
+  document.getElementById('compareAnalysis').style.display = 'none';
+  document.getElementById('compareAnalysis').innerHTML = '';
+}
+
+// ─── Comparison Mode ───
+function runComparison() {
+  const key = document.getElementById('comparePreset').value;
+  const p = PRESETS[key];
+  const {n, edges} = p;
+  const adj = buildAdj(n, edges);
+
+  // Brute force
+  let bestIS = [];
+  const total = 1 << n;
+  for (let mask = 0; mask < total; mask++) {
+    const subset = [];
+    for (let i = 0; i < n; i++) if (mask >> i & 1) subset.push(i);
+    let valid = true;
+    for (let i = 0; i < subset.length && valid; i++)
+      for (let j = i+1; j < subset.length && valid; j++)
+        if (adj[subset[i]].has(subset[j])) valid = false;
+    if (valid && subset.length > bestIS.length) bestIS = [...subset];
+  }
+
+  // Greedy
+  const greedyIS = [];
+  const active = new Set(Array.from({length:n}, (_,i) => i));
+  const gadj = buildAdj(n, edges);
+  while (active.size > 0) {
+    let minDeg = Infinity, minV = -1;
+    for (const v of active) {
+      let d = 0; for (const u of gadj[v]) if (active.has(u)) d++;
+      if (d < minDeg || (d === minDeg && v < minV)) { minDeg = d; minV = v; }
+    }
+    greedyIS.push(minV);
+    active.delete(minV);
+    for (const u of gadj[minV]) active.delete(u);
+  }
+
+  document.getElementById('bruteHint').style.display = 'none';
+  document.getElementById('greedyHint').style.display = 'none';
+  renderCompareGraph('svgBrute', n, edges, bestIS, 300, 230);
+  renderCompareGraph('svgGreedy', n, edges, greedyIS, 300, 230);
+
+  const isOptimal = greedyIS.length === bestIS.length;
+  document.getElementById('bruteResult').innerHTML =
+    `Optimal IS: {${bestIS.join(',')}} — Size = <strong style="color:var(--green)">${bestIS.length}</strong>`;
+  document.getElementById('greedyResult').innerHTML =
+    `Greedy IS: {${greedyIS.join(',')}} — Size = <strong style="color:${isOptimal?'var(--green)':'var(--red)'}">${greedyIS.length}</strong>`;
+
+  const analysis = document.getElementById('compareAnalysis');
+  analysis.style.display = 'block';
+  if (isOptimal) {
+    analysis.innerHTML = `<span style="color:var(--green)">✓ Greedy found the OPTIMAL solution on "${p.label}"! Both algorithms: IS size = ${bestIS.length}. (Greedy doesn't always succeed — try "Greedy Counterexample ★".)</span>`;
+  } else {
+    const diff = bestIS.length - greedyIS.length;
+    analysis.innerHTML = `<span style="color:var(--red)">⚠ GREEDY IS SUBOPTIMAL on "${p.label}"! Optimal IS size = ${bestIS.length}, but Greedy found only ${greedyIS.length}. Greedy missed ${diff} vertex/vertices because its local min-degree choices led to a dead end. This proves greedy is NOT guaranteed optimal.</span>`;
+  }
+}
+
+function renderCompareGraph(svgId, n, edges, isSet, W, H) {
+  const svg = document.getElementById(svgId);
+  svg.innerHTML = '';
+  const pts = layoutVerticesSmall(n, W/2, H/2, Math.min(W,H)/2.7);
+  const isSetS = new Set(isSet);
+
+  for (const [u,v] of edges) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',pts[u].x); line.setAttribute('y1',pts[u].y);
+    line.setAttribute('x2',pts[v].x); line.setAttribute('y2',pts[v].y);
+    line.setAttribute('stroke','rgba(59,79,130,0.7)'); line.setAttribute('stroke-width','2');
+    svg.appendChild(line);
+  }
+  for (let i = 0; i < n; i++) {
+    const inIS = isSetS.has(i);
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',pts[i].x); c.setAttribute('cy',pts[i].y); c.setAttribute('r','18');
+    c.setAttribute('fill', inIS?'#14532d':'#1e2640');
+    c.setAttribute('stroke', inIS?'#22c55e':'#3b4f82');
+    c.setAttribute('stroke-width', inIS?'3':'2');
+    svg.appendChild(c);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',pts[i].x); t.setAttribute('y',pts[i].y+5);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('fill', inIS?'#22c55e':'#8892a4');
+    t.setAttribute('font-size','11'); t.setAttribute('font-weight','700');
+    t.setAttribute('font-family','ui-monospace,monospace');
+    t.textContent = i;
+    svg.appendChild(t);
+  }
+}
+
+// Draw counterexample diagram in compare section
+function drawCounterexSvg() {
+  const p = PRESETS.counterexample;
+  const svg = document.getElementById('counterexSvg');
+  if (!svg) return;
+  svg.innerHTML = '';
+  const {n, edges} = p;
+  const pts = layoutVerticesSmall(n, 300, 105, 82);
+  for (const [u,v] of edges) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',pts[u].x); line.setAttribute('y1',pts[u].y);
+    line.setAttribute('x2',pts[v].x); line.setAttribute('y2',pts[v].y);
+    line.setAttribute('stroke','rgba(59,79,130,0.8)'); line.setAttribute('stroke-width','2');
+    svg.appendChild(line);
+  }
+  // Optimal IS: {1,2,4,5}
+  const optIS = new Set([1,2,4,5]);
+  const adj = buildAdj(n, edges);
+  for (let i = 0; i < n; i++) {
+    const inIS = optIS.has(i);
+    const deg = [...adj[i]].length;
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',pts[i].x); c.setAttribute('cy',pts[i].y); c.setAttribute('r','20');
+    c.setAttribute('fill', inIS?'#14532d':'#1e2640');
+    c.setAttribute('stroke', inIS?'#22c55e':'#3b4f82');
+    c.setAttribute('stroke-width', inIS?'3':'2');
+    svg.appendChild(c);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',pts[i].x); t.setAttribute('y',pts[i].y+4);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('fill', inIS?'#22c55e':'#8892a4');
+    t.setAttribute('font-size','11'); t.setAttribute('font-weight','700');
+    t.setAttribute('font-family','ui-monospace,monospace');
+    t.textContent = i;
+    svg.appendChild(t);
+    const dl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    dl.setAttribute('x',pts[i].x); dl.setAttribute('y',pts[i].y+33);
+    dl.setAttribute('text-anchor','middle'); dl.setAttribute('fill','#4a5568');
+    dl.setAttribute('font-size','9'); dl.setAttribute('font-family','ui-monospace,monospace');
+    dl.textContent = 'd='+deg;
+    svg.appendChild(dl);
+  }
+  const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+  label.setAttribute('x','300'); label.setAttribute('y','222');
+  label.setAttribute('text-anchor','middle'); label.setAttribute('fill','#8892a4');
+  label.setAttribute('font-size','10'); label.setAttribute('font-family','ui-monospace,monospace');
+  label.textContent = 'Green = Optimal IS {1,2,4,5} size=4 | Greedy finds {0,3,6} size=3';
+  svg.appendChild(label);
+}
+
+// ─── Init ───
+updatePseudo();
+drawGrowthChart();
+drawCounterexSvg();
+window.addEventListener('resize', drawGrowthChart);
+</script>
+</body>
+</html>
